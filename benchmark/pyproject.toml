@@ -1,0 +1,23 @@
+[project]
+name = "pyramis-l3d-benchmark"
+version = "0.1.0"
+description = "Benchmark Pyramis-L3D vs traditional MLA (Multi-head Latent Attention)"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.2",
+    "torchaudio>=2.2",
+    "transformers>=4.40",
+    "datasets>=2.14",
+    "safetensors>=0.4",
+    "einops>=0.7",
+    "tqdm>=4.66",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

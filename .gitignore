@@ -1,0 +1,8 @@
+# Python 编译产物
+__pycache__/
+*.py[cod]
+
+# 训练 / 实验中间 checkpoint
+checkpoint/
+checkpoint_stage*/
+checkpoint_test/
