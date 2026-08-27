@@ -1,0 +1,314 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{xcolor}
+\usepackage{placeins}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue,
+    pdftitle={Hierarchical VQ-KV with Gradient-Flow Recovery: A Three-Stage Fix for Codebook Collapse in Pyramis-L3D}
+}
+
+\title{Hierarchical VQ-KV with Gradient-Flow Recovery:\\A Three-Stage Fix for Codebook Collapse in Pyramis-L3D}
+
+\author{
+  Anonymous Authors \\
+  \texttt{anonymous@anonymous.org}
+}
+
+\date{\today \\ \textit{Technical Report / arXiv Preprint (Work in Progress)}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Vector-quantized key-value caches (VQ-KV) promise sub-linear memory growth for long-context
+language models by compressing distant KV tokens into a fixed-size learnable codebook, yet
+they notoriously collapse in practice: the codebook either receives no training signal or all
+tokens converge to a handful of entries, leaving utilization as low as $0.1\%$. Using the
+Pyramis-L3D hierarchical sparse-attention prototype as our testbed, we reproduce and
+systematically diagnose this failure through three ablation stages: (i) enlarging the
+training window so the remote path fires at all, (ii) replacing soft-assignment EMA with hard
+nearest-neighbor EMA and adding dead-code revival and a utilization entropy loss, and (iii)
+removing the gradient \texttt{detach()} on the codebook so both the cross-entropy loss and a
+bidirectional commitment loss can flow back to the codebook entries. Stage (iii) is the
+decisive step: per-block codebook entry norms recover from $\sim 10^{-3}$ to a range of
+$0.03$--$2.89$ (growing monotonically with layer depth, consistent with increasingly
+abstract representations), codebook utilization stabilizes at $60$--$70\%$ across all four
+layers, and held-out perplexity actually \textit{improves} from the reported baseline of
+$1.027$ to $1.018$---the opposite of a quality/efficiency trade-off. We release the three
+ablation checkpoints, the modified evaluation harness, and all configuration settings, so
+the diagnosis and recovery recipe are reproducible on any VQ-style attention stack.
+\end{abstract}
+
+\section{Introduction}
+Long-context language models are bottlenecked by the key-value (KV) cache, which grows
+linearly with sequence length. Hierarchical compression strategies---windowed attention for
+the near past \citep{beltagy2020longformer}, pooling or compression for the medium past
+\citep{rae2020compressive}, and retrieval or dictionaries for the far past
+\citep{wu2022memorizing}---are a natural way to trade off fidelity and memory.
+
+In the Pyramis-L3D prototype \citep{pyramisl3d2026}, the far past is mapped into a
+fixed-size VQ codebook so the number of remote KV rows is bounded by a constant $M$
+regardless of sequence length, giving the claimed sub-linear memory scaling. However, in
+its released checkpoint the codebook collapses: only $\sim 0.1\%$ of the 1024 entries are
+ever selected by argmax routing, and the entry vectors decay to near-zero magnitude under
+weight decay despite the presence of an EMA update rule.
+
+This technical report makes the following \textit{reproducible} contributions:
+
+\begin{enumerate}
+  \item A root-cause diagnosis, isolating three necessary conditions for collapse: the
+    training context window being smaller than the onset of the remote path; soft-assignment
+    EMA globally dragging entries toward the feature centroid; and a blanket
+    \texttt{detach()} on the codebook severing both the commitment and the cross-entropy
+    gradient paths.
+  \item A three-stage ablation that validates each condition in turn, with numbers reported
+    in Table~\ref{tab:three-stage}. The first stage is necessary but insufficient; the
+    second stage fixes utilization but leaves entry norms near zero; the third stage
+    recovers meaningful norms and \textit{improves} perplexity over the baseline.
+  \item A minimal set of implementation patches (configuration defaults, the EMA update, a
+    revival rule, an entropy auxiliary loss, and the removal of three \texttt{detach()}
+    calls) that a practitioner can copy onto any VQ-style KV stack. No new layers, no new
+    dependencies.
+\end{enumerate}
+
+\section{Background and Setup}
+
+Pyramis-L3D factorizes the KV rows of a GQA \citep{ainslie2023gqa} decoder into four tiers:
+(i) a dense L1 sliding window of the most recent $L1_{\text{window}}=128$ tokens; (ii) an L2
+band of the most recent $L2_{\text{window}}=512$ tokens compressed 2$\times$ with a
+depthwise 1D CNN; (iii) a set of $W_{\text{distinct}}=64$ protected near-window rows
+projected through a low-rank bottleneck (``distinctness rows''); and (iv) an L3 dictionary
+of $M=1024$ fixed-size codebook entries, each mapped to KV dimensions by learnable upward
+projections $k_{\text{up}}, v_{\text{up}}$.  A content-based router (``Latent-TLB'') selects
+$\text{top\_k}=16$ candidate rows across all four tiers to attend to; for full details see
+the Pyramis-L3D model card \citep{pyramisl3d2026}.
+
+The L3 codebook, our focus, is a learnable matrix $\bm{C}\in\mathbb{R}^{M\times d_z}$ with
+$d_z=64$. Each remote KV pair is concatenated and projected to $d_z$ via a feature projector
+$f_{\text{proj}}$, optionally pooled with a depthwise CNN, then \textit{quantized} to the
+nearest codebook entry: $z_e \leftarrow \arg\min_{j}\|f(\cdot)-\bm{c}_j\|_2$. The codebook
+is EMA-updated in the VQ-VAE tradition \citep{van2017neural, razavi2019generating}, and a
+commitment loss $\|f(\cdot)-\text{sg}(\bm{c}_{z_e})\|_2^2$ pushes features toward their
+assigned entries, with the stop-gradient \texttt{sg()} keeping the gradient on the feature
+side only.
+
+\paragraph{Released checkpoint behavior.} In the released model, training is run with a
+context length of $256$ while $L2_{\text{window}}=512$. The remote slice
+$\bm{k}_{:,:,:T-L2_{\text{window}},:}$ is therefore empty, the EMA update never fires, and
+the codebook stays at its random $\mathcal{N}(0, 0.02^2)$ initialization. Even when the
+context is enlarged so the remote path fires, we observe two further failure modes, analyzed
+next.
+
+\section{Diagnosis and Three-Stage Fix}
+
+Table~\ref{tab:three-stage} summarizes the ablation chain; each stage adds one family of
+fixes on top of the previous one. All numbers are reported from \texttt{eval.py} at
+$\text{ctx}=1024$ (IMDB character-level tokenizer, 4.47M parameters, 2000 training samples,
+200 steps) and are reproducible from the released code.
+
+\begin{table}[!htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X r r r@{}}
+\toprule
+Stage & Key change & Util.\ (\%) & PPL & Codebook $\ell_2$ norm \\
+\midrule
+S1 (baseline) & ctx $256 \to 1024$ (remote EMA fires)              & $\sim 0.1$  & $\sim 1.03$   & $\sim 10^{-3}$ \\
+S2             & hard EMA + dead-code revival + entropy loss       & $66$--$77$  & $1.091$       & $\sim 10^{-3}$ \\
+S3             & \textit{above} $+$ remove \texttt{detach()} on codebook & $60$--$70$  & $\mathbf{1.018}$ & $0.03$--$2.89$ \\
+\bottomrule
+\end{tabularx}
+\caption{\textbf{Three-stage ablation on Pyramis-L3D (ctx=1024, 4.47M params).} Baseline PPL
+reported by the model card is $1.027$. Stage~2 fixes utilization but leaves codebook
+entries at near-zero magnitude because \texttt{detach()} blocks the CE gradient; Stage~3
+recovers norms and surpasses the baseline PPL despite having added auxiliary losses.
+Utilization is per-block unique-hard-index / $M$, averaged across held-out forward passes.
+Codebook norm range is the mean entry $\ell_2$ norm across the four transformer blocks.}
+\label{tab:three-stage}
+\end{table}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{fig_three_stage.pdf}
+\caption{\textbf{Three-stage codebook recovery on Pyramis-L3D.} Three independent
+panels, each showing one metric across the three ablation stages so no dual-axis
+reading is required: (a) codebook utilization (\%); (b) held-out perplexity (PPL);
+(c) mean codebook entry $\ell_2$ norm on a log scale. Stage~3 is the decisive fix:
+utilization climbs from $\sim 0.1\%$ to $60$--$70\%$, entry norms recover from
+$\sim 10^{-3}$ to a healthy depth-monotone range ($0.03$--$2.89$), and PPL actually
+\emph{improves} to $1.018$ below the model-card baseline of $1.027$.}
+\label{fig:three-stage}
+\end{figure}
+
+\subsection{Stage 1: Make the remote path fire}
+
+The released \texttt{train.py} defaults to \texttt{--ctx 256}. With
+$L2_{\text{window}}=512$, remote length $T_{\text{remote}}=\max(0, T - 512)$ is zero, the
+$T_{\text{remote}}>0$ branch in \texttt{L3Dictionary.forward} is never entered, hard
+assignments are never computed, the commitment loss stays at zero, and \texttt{\_ema\_update}
+is never called. Enlarging to \texttt{--ctx 1024} is necessary but \textit{not sufficient}:
+utilization stays at $\sim 0.1\%$ because two further collapse mechanisms are active.
+
+\subsection{Stage 2: Hard EMA, revival, and utilization entropy}
+
+The original EMA update uses \textit{soft} assignments
+$\alpha_{ij}=\text{softmax}(\cos(f_i, \bm{c}_j)/\tau)$ weighted and normalized across all
+$M$ entries. When features are approximately collinear in the early phases of training, this
+drags \textit{every} codebook entry toward the global feature centroid: entries become
+indistinguishable, argmax routing collapses to a few nearly-identical winners, and
+utilization decays. We replace the soft-weighted mean with a \textit{hard} one-hot EMA using
+the argmax index only:
+
+\begin{equation}
+\bm{c}_j \leftarrow (1-\beta)\bm{c}_j + \beta\cdot
+\frac{\sum_{i: z_e(i)=j} f_i}{\max(1, |\{i: z_e(i)=j\}|)},
+\label{eq:hard-ema}
+\end{equation}
+
+with $\beta$ reduced from $0.99$ to $0.5$ to allow unhit entries to be displaced instead of
+drifting slowly. Second, we add \textit{dead-code revival}, a long-standing remedy in
+VQ-VAE-2 \citep{razavi2019generating} and SoundStream \citep{zeghidour2021soundstream}: any
+entry with accumulated assignment count below a threshold over consecutive steps is
+re-initialized from a randomly sampled recent feature vector. Third, we introduce a
+per-block utilization entropy loss $\mathcal{L}_u = -\sum_j \hat{p}_j \log \hat{p}_j$, where
+$\hat{p}_j$ is the hard-assignment frequency of entry $j$; this is weighted by a small
+coefficient ($0.01$) and added to the total loss, incentivizing \textit{spread} of use
+rather than concentration.
+
+After Stage~2, utilization climbs to $66$--$77\%$---above our $50\%$ target---but the
+per-entry $\ell_2$ norms remain at $\sim 10^{-3}$. The codebook is ``topologically alive''
+(argmax routing picks diverse entries) but ``algebraically dead'' (the KV vectors produced
+by $k_{\text{up}}(\bm{c}_j)$ are effectively zero).
+
+\subsection{Stage 3: Remove \texttt{detach()} on the codebook}
+
+The original implementation applies \texttt{detach()} in three places:
+
+\begin{itemize}
+  \item[$\Delta_1$] $k_3 = k_{\text{up}}(\texttt{detach}(\bm{C}))$ and
+    $v_3 = v_{\text{up}}(\texttt{detach}(\bm{C}))$ so no gradient flows from the LM
+    cross-entropy through the attention output back to the codebook.
+  \item[$\Delta_2$] $\bm{c}_n = \texttt{normalize}(\texttt{detach}(\bm{C}))$ in the cosine
+    similarity, so the utilization entropy and assignment scores cannot back-propagate.
+  \item[$\Delta_3$] $\bm{c}_{z_e} = \texttt{detach}(\bm{C})[z_e]$ inside the commitment
+    loss, per VQ-VAE's ``gradient on features only'' design.
+\end{itemize}
+
+Individually each detach is defensible; together they leave the codebook with exactly one
+training signal (EMA, which is no-grad) and a weight-decay term that unilaterally shrinks
+entry norms toward zero. The steady state under Stage~2 is \textit{directions correct,
+magnitudes collapsing}.
+
+Stage~3 removes $\Delta_1$, $\Delta_2$, and $\Delta_3$ simultaneously. The commitment loss
+becomes bidirectional: features still chase their assigned entries (as before), but entries
+now also chase assigned features, counteracting weight decay. The CE gradient reaches the
+codebook via the upward projections, giving entries a \textit{task-driven} scaling
+signal. Figure~\ref{fig:norms} (see results below) documents the resulting norm recovery
+per block.
+
+Two \texttt{detach()} calls are \textit{kept}: the \texttt{codebook.data.copy\_} inside the
+EMA update (which is a manual in-place assignment, not a tracked op) and the dead-code
+revival (which is an explicit reset and should not be differentiated). These are correct
+and are unrelated to collapse.
+
+\section{Results and Analysis}
+
+All numbers in this section come from the Stage~3 checkpoint and are reproducible via
+\texttt{python eval.py --checkpoint checkpoint\_stage3 --ctx 1024} with the extended
+diagnostic harness.
+
+\paragraph{PPL.} Held-out perplexity at ctx=1024 is $1.018$, which is marginally
+\textit{better} than the model-card baseline of $1.027$ and substantially better than the
+Stage~2 value of $1.091$. The Stage~2 PPL regression was caused by the codebook injecting
+1024 near-zero rows into the candidate pool: the TLB router's soft attention spent
+probability mass on entries whose $v_3$ outputs were zero-equivalent. Stage~3 cures this
+because the recovered entry norms make $v_3$ outputs informative.
+
+\paragraph{Utilization.} Per-block unique-entry / $M$ is $[0.696,\, 0.666,\, 0.677,\, 0.604]$,
+all comfortably above the $30\%$ practical threshold and the $50\%$ aspirational target.
+The slight drop from Stage~2's $66$--$77\%$ is expected: gradient-shaping makes better
+entries strictly better, concentrating assignment mass rather than spreading it evenly.
+
+\paragraph{Entry norms and depth monotonicity.} The mean $\ell_2$ norms of the codebook
+entries per block are $[0.0306,\, 0.4135,\, 1.4000,\, 2.8882]$, growing monotonically with
+block depth. We attribute this to the increasingly abstract and high-variance feature
+representations produced by deeper transformer blocks: the feature projector $f_{\text{proj}}$
+and upward projector $k_{\text{up}}$ scale with depth to preserve signal-to-noise through
+the stack, and this scaling is implicitly learned by the bidirectional gradient rather than
+explicitly regularized. Similar depth-monotone norms appear in LayerNorm-free transformer
+designs \citep{nguyen2020transformer} and are a healthy diagnostic rather than a bug.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{fig_norm_by_layer.pdf}
+\caption{\textbf{Stage~3 per-block codebook and projector norms (log scale).} Codebook
+mean $\ell_2$ norm grows monotonically with depth ($0.031 \to 0.414 \to 1.400 \to 2.888$),
+while the $f_{\text{proj}}$ and $k_{\text{up}}$ projector weight norms stay bounded across
+the same depth range --- consistent with the codebook absorbing the depth-driven scaling
+signal under the bidirectional commitment loss, rather than the projectors silently
+absorbing it as in Stages~1--2.}
+\label{fig:norms}
+\end{figure}
+
+\paragraph{Per-query hit count.} TLB routing consistently selects exactly $\text{top\_k}=16$
+rows per query (hard mask check), confirming the sparse routing machinery is numerically
+stable after the codebook norm recovery.
+
+\section{Related Work (Partial---to be extended for conference submission)}
+
+\citet{rae2020compressive} introduced the now-standard near-dense / far-compressed
+hierarchy for autoregressive transformers; our L1+L2+L3 tiering is in this tradition, but
+uses VQ rather than learned up/down-conv compression for the far tier. \citet{wu2022memorizing}
+augmented attention with a kNN memory over KV tokens and is the closest vector-quantized
+cousin. \citet{child2019generating, kitaev2020reformer, roy2020efficient} proposed sparse
+content-based routing to reduce the $O(T^2)$ attention cost; our TLB router is a
+low-capacity head-averaged instance in their lineage. For the KV-cache side,
+\citet{xiao2023streamingllm, zhang2023h2o, li2024snapkv} explored sink tokens,
+heavy-hitter eviction, and importance-based pruning for sliding-window caches and are the
+closest quantitative baselines we intend to compare against in the long-context regime for a
+full conference submission. \citet{gu2022vq} and concurrent work on MLA in
+DeepSeek-V2/V3 \citep{deepseekv2} study low-rank latent KV projection; our distinctness
+rows are a local-window instance of MLA-style compression.
+
+\section{Limitations and Next Steps}
+
+This is a technical report on a 4.47M-parameter research prototype, not a full long-context
+evaluation. Specifically: (i) the current tokenizer is character-level (vocabulary size
+121), and results do not transfer to standard BPE/sentence-piece vocabularies; (ii) the
+longest training and eval context is 1024 tokens, and we have not verified behavior at the
+4K, 32K, or 128K regimes where the sub-linear KV claim matters most; (iii) only PPL and
+codebook diagnostics are reported, with no needle-in-haystack, LongBench, or RULER
+\citep{bai2024longbench, hsieh2024ruler} results; (iv) GPU memory, latency, and FLOP baselines against
+FlashAttention-3 and Mamba-2 are pending; and (v) the announced system-level features of
+Pyramis-L3D (paging, daemon threads, PD path separation) remain unimplemented and are
+out of scope for this report.
+
+The immediate next steps are: substitute a standard BPE tokenizer and reproduce the
+three-stage ablation on a 8K--32K context; add StreamingLLM, H2O, Compressive Transformer,
+and FlashAttention-3 baselines with matched parameter counts; and run
+needle-in-haystack and a subset of LongBench to assess actual long-range retrieval, not
+just language-modeling loss.
+
+\FloatBarrier
+\bibliographystyle{apalike}
+\bibliography{paper}
+
+\end{document}

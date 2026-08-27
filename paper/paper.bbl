@@ -1,0 +1,122 @@
+\begin{thebibliography}{}
+
+\bibitem[Ainslie et~al., 2023]{ainslie2023gqa}
+Ainslie, J., Lee, M., Csendes, L., Thoppilan, R., Zhou, Y., Lin, J., Shakeri,
+  S., Pathak, A., and Sanghai, S. (2023).
+\newblock {GQA}: Training generalized multi-query transformer models from
+  multi-head checkpoints.
+\newblock {\em arXiv preprint arXiv:2305.13245}.
+
+\bibitem[Bai et~al., 2024]{bai2024longbench}
+Bai, Y., Lv, X., Zhang, J., Lyu, H., Tang, J., Huang, Z., Du, Z., Liu, X.,
+  Zeng, A., Hou, L., Dong, Y., Tang, J., and Li, J. (2024).
+\newblock {LongBench}: A bilingual, multitask benchmark for long context
+  understanding.
+\newblock In {\em Association for Computational Linguistics ({ACL})}.
+
+\bibitem[Beltagy et~al., 2020]{beltagy2020longformer}
+Beltagy, I., Peters, M.~E., and Cohan, A. (2020).
+\newblock Longformer: The long-document transformer.
+\newblock In {\em Association for Computational Linguistics ({ACL})}.
+
+\bibitem[Child et~al., 2019]{child2019generating}
+Child, R., Gray, S., Radford, A., and Sutskever, I. (2019).
+\newblock Generating long sequences with sparse transformers.
+\newblock In {\em International Conference on Machine Learning ({ICML})},
+  volume~97.
+
+\bibitem[{DeepSeek-AI}, 2024]{deepseekv2}
+{DeepSeek-AI} (2024).
+\newblock Deepseek-{V2}: A strong, economical, and efficient mixture-of-experts
+  language model.
+\newblock {\em arXiv preprint arXiv:2405.04434}.
+
+\bibitem[{FemtoRhythm}, 2026]{pyramisl3d2026}
+{FemtoRhythm} (2026).
+\newblock Pyramis-{L3D}: A hierarchical sparse attention research prototype.
+\newblock \url{https://github.com/FemtoRhythm/pyramis-l3d}.
+\newblock GitHub repository; Apache 2.0.
+
+\bibitem[Gu et~al., 2022]{gu2022vq}
+Gu, S., Chen, D., Bao, J., Zhang, F., Gao, B., Yuan, L., and Wong, B. (2022).
+\newblock Vector quantized diffusion model for text-to-image synthesis.
+\newblock In {\em {IEEE}/{CVF} Conference on Computer Vision and Pattern
+  Recognition ({CVPR})}.
+
+\bibitem[Hsieh et~al., 2024]{hsieh2024ruler}
+Hsieh, C.-P., Sun, S., Kriman, S., Acharya, S., Rekesh, D., Jia, F., Zhang, Y.,
+  and Ginsburg, B. (2024).
+\newblock {RULER}: What's the real context size of your long-context language
+  models?
+\newblock In {\em First Conference on Language Modeling ({COLM})}.
+
+\bibitem[Kitaev et~al., 2020]{kitaev2020reformer}
+Kitaev, N., Kaiser, {\L}., and Levskaya, A. (2020).
+\newblock Reformer: The efficient transformer.
+\newblock In {\em International Conference on Learning Representations
+  ({ICLR})}.
+
+\bibitem[Li et~al., 2024]{li2024snapkv}
+Li, Y., Huang, Y., Yang, B., Venkitesh, B., Locatelli, A., Ye, H., Cai, T.,
+  Lewis, P., and Chen, D. (2024).
+\newblock {SnapKV}: {LLM} knows what you are looking for before generation.
+\newblock In {\em Advances in Neural Information Processing Systems
+  ({NeurIPS})}, volume~37.
+
+\bibitem[Nguyen and Salazar, 2019]{nguyen2020transformer}
+Nguyen, T.~Q. and Salazar, J. (2019).
+\newblock Transformers without tears: Improving the normalization of
+  self-attention.
+\newblock {\em arXiv preprint arXiv:1910.05895}.
+
+\bibitem[Rae et~al., 2020]{rae2020compressive}
+Rae, J.~W., Potapenko, A., Jayakumar, S.~M., and Lillicrap, T.~P. (2020).
+\newblock Compressive transformers for long-range sequence modelling.
+\newblock In {\em International Conference on Learning Representations
+  ({ICLR})}.
+
+\bibitem[Razavi et~al., 2019]{razavi2019generating}
+Razavi, A., van~den Oord, A., and Vinyals, O. (2019).
+\newblock Generating diverse high-fidelity images with {VQ-VAE-2}.
+\newblock In {\em Advances in Neural Information Processing Systems
+  ({NeurIPS})}, volume~32.
+
+\bibitem[Roy et~al., 2020]{roy2020efficient}
+Roy, A., Saffar, M., Vaswani, A., and Grangier, D. (2020).
+\newblock Efficient content-based sparse attention with routing transformers.
+\newblock {\em Transactions of the Association for Computational Linguistics
+  ({TACL})}, 9:1113--1128.
+
+\bibitem[van~den Oord et~al., 2017]{van2017neural}
+van~den Oord, A., Vinyals, O., and Kavukcuoglu, K. (2017).
+\newblock Neural discrete representation learning.
+\newblock In {\em Advances in Neural Information Processing Systems
+  ({NeurIPS})}, volume~30.
+
+\bibitem[Wu et~al., 2022]{wu2022memorizing}
+Wu, Y., Rabe, M.~N., Hutchins, D., and Szegedy, C. (2022).
+\newblock Memorizing transformers.
+\newblock In {\em International Conference on Learning Representations
+  ({ICLR})}.
+
+\bibitem[Xiao et~al., 2024]{xiao2023streamingllm}
+Xiao, G., Tian, Y., Chen, B., Han, S., and Lewis, M. (2024).
+\newblock Efficient streaming language models with attention sinks.
+\newblock In {\em International Conference on Learning Representations
+  ({ICLR})}.
+
+\bibitem[Zeghidour et~al., 2021]{zeghidour2021soundstream}
+Zeghidour, N., Luebs, A., Omran, A., Skoglund, J., and Tagliasacchi, M. (2021).
+\newblock Soundstream: An end-to-end neural audio codec.
+\newblock {\em arXiv preprint arXiv:2107.03312 (also IEEE/ACM Transactions on
+  Audio, Speech, and Language Processing, vol. 30, pp. 495--507, 2022)}.
+
+\bibitem[Zhang et~al., 2023]{zhang2023h2o}
+Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song, Z., Tian,
+  Y., R{\'e}, C., Barrett, C., Wang, Z., and Chen, B. (2023).
+\newblock {H2O}: Heavy-hitter oracle for efficient generative inference of
+  large language models.
+\newblock In {\em Advances in Neural Information Processing Systems
+  ({NeurIPS})}, volume~36.
+
+\end{thebibliography}

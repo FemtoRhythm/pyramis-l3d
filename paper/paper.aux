@@ -1,0 +1,64 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{beltagy2020longformer}
+\citation{rae2020compressive}
+\citation{wu2022memorizing}
+\citation{pyramisl3d2026}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\citation{ainslie2023gqa}
+\citation{pyramisl3d2026}
+\citation{van2017neural,razavi2019generating}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Background and Setup}{2}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Released checkpoint behavior.}{2}{section*.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Diagnosis and Three-Stage Fix}{2}{section.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces \textbf  {Three-stage ablation on Pyramis-L3D (ctx=1024, 4.47M params).} Baseline PPL reported by the model card is $1.027$. Stage~2 fixes utilization but leaves codebook entries at near-zero magnitude because \texttt  {detach()} blocks the CE gradient; Stage~3 recovers norms and surpasses the baseline PPL despite having added auxiliary losses. Utilization is per-block unique-hard-index / $M$, averaged across held-out forward passes. Codebook norm range is the mean entry $\ell _2$ norm across the four transformer blocks.}}{2}{table.1}\protected@file@percent }
+\newlabel{tab:three-stage}{{1}{2}{\textbf {Three-stage ablation on Pyramis-L3D (ctx=1024, 4.47M params).} Baseline PPL reported by the model card is $1.027$. Stage~2 fixes utilization but leaves codebook entries at near-zero magnitude because \texttt {detach()} blocks the CE gradient; Stage~3 recovers norms and surpasses the baseline PPL despite having added auxiliary losses. Utilization is per-block unique-hard-index / $M$, averaged across held-out forward passes. Codebook norm range is the mean entry $\ell _2$ norm across the four transformer blocks}{table.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {Three-stage codebook recovery on Pyramis-L3D.} Three independent panels, each showing one metric across the three ablation stages so no dual-axis reading is required: (a) codebook utilization (\%); (b) held-out perplexity (PPL); (c) mean codebook entry $\ell _2$ norm on a log scale. Stage~3 is the decisive fix: utilization climbs from $\sim 0.1\%$ to $60$--$70\%$, entry norms recover from $\sim 10^{-3}$ to a healthy depth-monotone range ($0.03$--$2.89$), and PPL actually \emph  {improves} to $1.018$ below the model-card baseline of $1.027$.}}{3}{figure.1}\protected@file@percent }
+\newlabel{fig:three-stage}{{1}{3}{\textbf {Three-stage codebook recovery on Pyramis-L3D.} Three independent panels, each showing one metric across the three ablation stages so no dual-axis reading is required: (a) codebook utilization (\%); (b) held-out perplexity (PPL); (c) mean codebook entry $\ell _2$ norm on a log scale. Stage~3 is the decisive fix: utilization climbs from $\sim 0.1\%$ to $60$--$70\%$, entry norms recover from $\sim 10^{-3}$ to a healthy depth-monotone range ($0.03$--$2.89$), and PPL actually \emph {improves} to $1.018$ below the model-card baseline of $1.027$}{figure.1}{}}
+\citation{razavi2019generating}
+\citation{zeghidour2021soundstream}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Stage 1: Make the remote path fire}{4}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Stage 2: Hard EMA, revival, and utilization entropy}{4}{subsection.3.2}\protected@file@percent }
+\newlabel{eq:hard-ema}{{1}{4}{Stage 2: Hard EMA, revival, and utilization entropy}{equation.3.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Stage 3: Remove \texttt  {detach()} on the codebook}{4}{subsection.3.3}\protected@file@percent }
+\citation{nguyen2020transformer}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Results and Analysis}{5}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{PPL.}{5}{section*.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Utilization.}{5}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Entry norms and depth monotonicity.}{5}{section*.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {Stage~3 per-block codebook and projector norms (log scale).} Codebook mean $\ell _2$ norm grows monotonically with depth ($0.031 \to 0.414 \to 1.400 \to 2.888$), while the $f_{\text  {proj}}$ and $k_{\text  {up}}$ projector weight norms stay bounded across the same depth range --- consistent with the codebook absorbing the depth-driven scaling signal under the bidirectional commitment loss, rather than the projectors silently absorbing it as in Stages~1--2.}}{5}{figure.2}\protected@file@percent }
+\newlabel{fig:norms}{{2}{5}{\textbf {Stage~3 per-block codebook and projector norms (log scale).} Codebook mean $\ell _2$ norm grows monotonically with depth ($0.031 \to 0.414 \to 1.400 \to 2.888$), while the $f_{\text {proj}}$ and $k_{\text {up}}$ projector weight norms stay bounded across the same depth range --- consistent with the codebook absorbing the depth-driven scaling signal under the bidirectional commitment loss, rather than the projectors silently absorbing it as in Stages~1--2}{figure.2}{}}
+\citation{rae2020compressive}
+\citation{wu2022memorizing}
+\citation{child2019generating,kitaev2020reformer,roy2020efficient}
+\citation{xiao2023streamingllm,zhang2023h2o,li2024snapkv}
+\citation{gu2022vq}
+\citation{deepseekv2}
+\citation{bai2024longbench,hsieh2024ruler}
+\bibstyle{apalike}
+\bibdata{paper}
+\bibcite{ainslie2023gqa}{{1}{2023}{{Ainslie et~al.}}{{}}}
+\bibcite{bai2024longbench}{{2}{2024}{{Bai et~al.}}{{}}}
+\bibcite{beltagy2020longformer}{{3}{2020}{{Beltagy et~al.}}{{}}}
+\bibcite{child2019generating}{{4}{2019}{{Child et~al.}}{{}}}
+\bibcite{deepseekv2}{{5}{2024}{{DeepSeek-AI}}{{}}}
+\@writefile{toc}{\contentsline {paragraph}{Per-query hit count.}{6}{section*.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Related Work (Partial---to be extended for conference submission)}{6}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Limitations and Next Steps}{6}{section.6}\protected@file@percent }
+\bibcite{pyramisl3d2026}{{6}{2026}{{FemtoRhythm}}{{}}}
+\bibcite{gu2022vq}{{7}{2022}{{Gu et~al.}}{{}}}
+\bibcite{hsieh2024ruler}{{8}{2024}{{Hsieh et~al.}}{{}}}
+\bibcite{kitaev2020reformer}{{9}{2020}{{Kitaev et~al.}}{{}}}
+\bibcite{li2024snapkv}{{10}{2024}{{Li et~al.}}{{}}}
+\bibcite{nguyen2020transformer}{{11}{2019}{{Nguyen and Salazar}}{{}}}
+\bibcite{rae2020compressive}{{12}{2020}{{Rae et~al.}}{{}}}
+\bibcite{razavi2019generating}{{13}{2019}{{Razavi et~al.}}{{}}}
+\bibcite{roy2020efficient}{{14}{2020}{{Roy et~al.}}{{}}}
+\bibcite{van2017neural}{{15}{2017}{{van~den Oord et~al.}}{{}}}
+\bibcite{wu2022memorizing}{{16}{2022}{{Wu et~al.}}{{}}}
+\bibcite{xiao2023streamingllm}{{17}{2024}{{Xiao et~al.}}{{}}}
+\bibcite{zeghidour2021soundstream}{{18}{2021}{{Zeghidour et~al.}}{{}}}
+\bibcite{zhang2023h2o}{{19}{2023}{{Zhang et~al.}}{{}}}
+\gdef \@abspage@last{7}

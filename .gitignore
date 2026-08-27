@@ -1,8 +1,17 @@
-# Python 编译产物
+# Python 缓存
 __pycache__/
 *.py[cod]
 
-# 训练 / 实验中间 checkpoint
-checkpoint/
-checkpoint_stage*/
-checkpoint_test/
+# 测试缓存
+.pytest_cache/
+
+# 发布中间产物
+release/
+
+# 虚拟环境
+.venv/
+
+# 模型权重（从 Hugging Face 加载，不上传）
+*.safetensors
+*.bin
+*.h5
