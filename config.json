@@ -5,7 +5,7 @@
   "L2_window": 512,
   "L3_codebook_size": 1024,
   "L3_commitment_weight": 0.25,
-  "L3_dead_threshold": 1.0,
+  "L3_dead_threshold": 100,
   "L3_ema": 0.5,
   "L3_entropy_weight": 0.01,
   "L3_latent_dim": 64,

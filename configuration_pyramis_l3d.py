@@ -33,7 +33,7 @@ class PyramisL3DConfig(PretrainedConfig):
         L3_temperature: float = 1.0,
         L3_commitment_weight: float = 0.25,
         L3_entropy_weight: float = 0.01,
-        L3_dead_threshold: float = 1.0,
+        L3_dead_threshold: int = 100,
         W_distinct: int = 64,
         top_k: int = 16,
         tlb_mode: str = "ste",

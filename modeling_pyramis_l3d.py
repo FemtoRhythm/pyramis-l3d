@@ -161,6 +161,9 @@ class L3Dictionary(nn.Module):
         self.temperature = config.L3_temperature
         self.dead_threshold = config.L3_dead_threshold
 
+        # dead-code revival: 连续 N 步未被选中视为 dead
+        self.register_buffer("visit_count", torch.zeros(self.M, dtype=torch.long))
+
         # 可学习 codebook
         self.codebook = nn.Parameter(torch.empty(self.M, self.latent_dim))
         nn.init.normal_(self.codebook, std=0.02)
@@ -184,6 +187,7 @@ class L3Dictionary(nn.Module):
         # 诊断(供测试 hook 读取)
         self._last_hard_idx = None
         self._last_utilization = 0.0
+        self._last_entropy = 0.0
 
     def forward(self, k_remote: torch.Tensor, v_remote: torch.Tensor):
         # k_remote, v_remote: [B, n_kv, T_remote, head_dim]
@@ -217,18 +221,38 @@ class L3Dictionary(nn.Module):
             c_idx = self.codebook[hard_idx]  # [B, n_kv, T_remote, latent_dim]
             commitment = ((f - c_idx) ** 2).sum(dim=-1).mean()
 
-            # usage entropy 损失: 鼓励 codebook 均匀使用 (对抗坍塌)
-            p_j = soft_assign.mean(dim=(0, 1, 2))  # [M] 平均使用概率, 和为 1
-            usage_entropy = -(p_j * torch.log(p_j + 1e-8)).sum()
-            entropy_loss = -usage_entropy  # 最小化 -> 最大化使用熵(均匀)
+            # usage entropy 损失 (hard bincount 版): 鼓励 codebook 均匀使用 (对抗坍塌)
+            flat = hard_idx.reshape(-1)
+            usage = torch.bincount(flat, minlength=self.M).float()
+            usage_p = usage / (usage.sum() + 1e-8)
+            usage_p = usage_p[usage_p > 0]  # 去掉 0, 避免 log(0)
+            entropy_loss = -(usage_p * usage_p.log()).sum()
+            self._last_entropy = entropy_loss.item()
 
             # EMA 更新 codebook (no_grad, 硬分配)
             if self.training and self.ema < 1.0:
                 self._ema_update(f.detach(), hard_idx)
 
-        # 诊断
+        # dead-code revival + 诊断
         if hard_idx is not None:
             flat_idx = hard_idx.detach().reshape(-1)
+            counts = torch.bincount(flat_idx, minlength=self.M)
+            self.visit_count += counts
+
+            # Revival: 把连续 dead 的 entry 重新初始化为最近活跃 entry 的小扰动
+            if self.training:
+                dead = (self.visit_count > self.dead_threshold) & (counts == 0)
+                n_dead = dead.sum().item()
+                if n_dead > 0:
+                    alive_idx = torch.where(counts > 0)[0]
+                    if alive_idx.numel() > 0:
+                        revive_idx = torch.where(dead)[0][:alive_idx.numel()]
+                        src_idx = alive_idx[:revive_idx.numel()]
+                        with torch.no_grad():
+                            noise = torch.randn_like(self.codebook[src_idx]) * 0.1
+                            self.codebook.data[revive_idx] = self.codebook.data[src_idx] + noise
+                        self.visit_count[revive_idx] = 0
+
             self._last_hard_idx = flat_idx
             used = torch.unique(flat_idx).numel()
             self._last_utilization = used / self.M
@@ -251,15 +275,6 @@ class L3Dictionary(nn.Module):
 
         updated = (1.0 - self.ema) * self.codebook.data + self.ema * mean
         self.codebook.data.copy_(torch.where(mask, updated, self.codebook.data))
-
-        # 死码字复活: 长期未被硬分配的 entry 用当前 batch 随机 feature 重新初始化
-        # (参考 VQ-VAE-2 / SoundStream)
-        if self.dead_threshold is not None and self.dead_threshold > 0:
-            dead = count < self.dead_threshold  # [M]
-            n_dead = int(dead.sum().item())
-            if n_dead > 0:
-                sample_idx = torch.randint(0, flat_f.shape[0], (n_dead,), device=f.device)
-                self.codebook.data[dead] = flat_f[sample_idx].detach()
 
 
 # ---------------------------------------------------------------------------

@@ -46,8 +46,8 @@ def get_batch(tokens, batch, ctx, device):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--nsamples", type=int, default=2000)
-    ap.add_argument("--steps", type=int, default=200)
-    ap.add_argument("--ctx", type=int, default=256)
+    ap.add_argument("--steps", type=int, default=1000)
+    ap.add_argument("--ctx", type=int, default=1024)
     ap.add_argument("--batch", type=int, default=16)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--out", type=str, default="./checkpoint")

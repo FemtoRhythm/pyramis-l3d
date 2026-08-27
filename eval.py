@@ -95,7 +95,7 @@ def main():
     model(x)
     utils = [b.self_attn.l3_dict._last_utilization for b in model.model.blocks]
     print(f"  codebook 利用率: {[f'{u:.3f}' for u in utils]}")
-    cb_norms = [b.self_attn.l3_dict.codebook.norm().item() for b in model.model.blocks]
+    cb_norms = [b.self_attn.l3_dict.codebook.data.norm(dim=-1).mean().item() for b in model.model.blocks]
     fp_norms = [b.self_attn.l3_dict.f_proj.weight.norm().item() for b in model.model.blocks]
     ku_norms = [b.self_attn.l3_dict.k_up.weight.norm().item() for b in model.model.blocks]
     print(f"  codebook norm: {[f'{v:.4f}' for v in cb_norms]}")
