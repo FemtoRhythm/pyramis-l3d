@@ -15,3 +15,9 @@ release/
 *.safetensors
 *.bin
 *.h5
+
+# LaTeX 构建产物（编译 paper.tex 时重新生成）
+paper/*.aux
+paper/*.blg
+paper/*.out
+paper/*.log
