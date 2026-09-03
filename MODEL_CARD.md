@@ -4,8 +4,6 @@ language:
   - en
 license: apache-2.0
 tags:
-  - 3d-vision
-  - multimodal
   - hierarchical-attention
   - sparse-attention
   - research
